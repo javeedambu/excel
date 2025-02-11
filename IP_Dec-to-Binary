@@ -1,0 +1,6 @@
+# Excel formula for IP to Decimal for each octet
+
+=DEC2BIN(INT(LEFT(A2,FIND(".",A2)-1)),8)
+=DEC2BIN(INT(MID(A2,FIND(".",A2)+1,FIND(".",A2,FIND(".",A2)+1)-FIND(".",A2)-1)),8)
+=DEC2BIN(INT(MID(A2,FIND(".",A2,FIND(".",A2)+1)+1,FIND(".",A2,FIND(".",A2,FIND(".",A2)+1)+1)-FIND(".",A2,FIND(".",A2)+1)-1)),8)
+=DEC2BIN(INT(MID(A2,FIND(".",A2,FIND(".",A2,FIND(".",A2)+1)+1)+1,LEN(A2)-FIND(".",A2,FIND(".",A2,FIND(".",A2)+1)+1)),8)
