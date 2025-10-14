@@ -1,0 +1,36 @@
+let
+    // STEP 1: Load the file as raw binary
+    raw = File.Contents("C:\Path\To\Your\File.csv"),
+
+    // STEP 2: Convert binary to text (adjust encoding if needed)
+    rawText = Text.FromBinary(raw, TextEncoding.Utf8),
+
+    // STEP 3: Split file into lines
+    lines = Text.Split(rawText, "#(lf)"),
+
+    // STEP 4: Fix the header (remove final semicolon from first line)
+    fixedHeader = Text.TrimEnd(lines{0}, ";"),
+
+    // STEP 5: Replace \; with # in all lines
+    cleanedLines = List.Transform(lines, each Text.Replace(_, "\;", "#")),
+
+    // STEP 6: Replace header line with cleaned header
+    finalLines = List.Combine({ {fixedHeader}, List.Skip(cleanedLines, 1) }),
+
+    // STEP 7: Combine lines back into a single string
+    finalText = Text.Combine(finalLines, "#(lf)"),
+
+    // STEP 8: Convert back to binary
+    cleanedBinary = Text.ToBinary(finalText, TextEncoding.Utf8),
+
+    // STEP 9: Parse CSV using semicolon as delimiter
+    parsedCsv = Csv.Document(cleanedBinary, [
+        Delimiter = ";",
+        Encoding = TextEncoding.Utf8,
+        QuoteStyle = QuoteStyle.Csv
+    ]),
+
+    // STEP 10: Promote first row to headers
+    withHeaders = Table.PromoteHeaders(parsedCsv, [PromoteAllScalars=true])
+in
+    withHeaders
