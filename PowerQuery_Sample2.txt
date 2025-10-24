@@ -1,0 +1,11 @@
+**Excel**
+=IF(LEFT(E2,2)="\\","SMB", IF(LEFT(E2,7)="SFTP://","SFTP", IF(LEFT(E2,6)="FTP://","FTP", IF(LEFT(E2,3)="E:\","LOCAL",IF(LEFT(E2,8)="SCHEDULE","SCHEDULE", IF (LEFT(E2,2)="S3","S3","EMAIL"))))))
+
+**PowerQuery**
+if Text.StartsWith([URI], "\\") then "SMB" 
+else if Text.StartsWith([URI], "SFTP://") then "SFTP" 
+else if Text.StartsWith([URI], "FTP://") then "FTP" 
+else if Text.StartsWith([URI], "E:\") then "LOCAL" 
+else if Text.StartsWith([URI], "SCHEDULE") then "SCHEDULE" 
+else if Text.StartsWith([URI], "S3") then "S3" 
+else "EMAIL"
