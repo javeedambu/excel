@@ -9,3 +9,48 @@ else if Text.StartsWith([URI], "E:\") then "LOCAL"
 else if Text.StartsWith([URI], "SCHEDULE") then "SCHEDULE" 
 else if Text.StartsWith([URI], "S3") then "S3" 
 else "EMAIL"
+
+
+
+-----------------------
+let
+    // Load all tables from current workbook
+    Source = Excel.CurrentWorkbook(),
+
+    // Rename the auto-generated Name column to TableName
+    #"Renamed Columns" = Table.RenameColumns(Source, {{"Name", "TableName"}}),
+
+    // Filter out any tables named "Summary"
+    #"Filtered Rows" = Table.SelectRows(#"Renamed Columns", each [TableName] <> "Summary"),
+
+    // Expand the table content to include NAME and URI columns
+    #"Expanded Content" = Table.ExpandTableColumn(#"Filtered Rows", "Content", {"NAME", "URI"}, {"NAME", "URI"}),
+
+    // Add calculated column PROTOCOL based on URI value
+    #"Added PROTOCOL" = Table.AddColumn(#"Expanded Content", "PROTOCOL", each 
+        if Text.StartsWith([URI], "\\") then "SMB" 
+        else if Text.StartsWith(Text.Upper([URI]), "SFTP://") then "SFTP" 
+        else if Text.StartsWith(Text.Upper([URI]), "FTP://") then "FTP" 
+        else if Text.StartsWith(Text.Upper([URI]), "E:\") or Text.StartsWith(Text.Upper([URI]), "E:\\") then "LOCAL" 
+        else if Text.StartsWith(Text.Upper([URI]), "SCHEDULE") then "SCHEDULE" 
+        else if Text.StartsWith(Text.Upper([URI]), "S3") then "S3" 
+        else "EMAIL"
+    ),
+
+    // Add TARGET column based on PROTOCOL
+    #"Added TARGET" = Table.AddColumn(#"Added PROTOCOL", "TARGET", each 
+        if [PROTOCOL] = "SMB" then Text.Split([URI], "\"){2}
+        else if [PROTOCOL] = "SFTP" or [PROTOCOL] = "FTP" then
+            Text.BeforeDelimiter(
+                if Text.Contains(Text.AfterDelimiter([URI], "://"), "@") 
+                    then Text.AfterDelimiter([URI], "@") 
+                    else Text.AfterDelimiter([URI], "://"),
+                if Text.Contains(Text.AfterDelimiter([URI], "://"), ":") then ":" else "/")
+        else if [PROTOCOL] = "S3" then Text.Split([URI], "/"){2}
+        else null
+    ),
+
+    // Reorder columns as desired
+    #"Reordered Columns" = Table.ReorderColumns(#"Added TARGET", {"TableName", "NAME", "URI", "PROTOCOL", "TARGET"})
+in
+    #"Reordered Columns"
