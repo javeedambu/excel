@@ -1,0 +1,51 @@
+let
+    // Load all tables from current workbook
+    Source = Excel.CurrentWorkbook(),
+
+    // Rename the auto-generated Name column to TableName
+    Renamed = Table.RenameColumns(Source, {{"Name", "TableName"}}),
+
+    // Filter out any tables named "Summary"
+    Filtered = Table.SelectRows(Renamed, each [TableName] <> "Summary"),
+
+    // Expand the table content
+    Expanded = Table.ExpandTableColumn(
+        Filtered,
+        "Content",
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"},
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"}
+    ),
+
+    // Transform IP_SRC based on HOST_SRC
+    AddedIP_SRC = Table.AddColumn(
+        Expanded,
+        "IP_SRC_New",
+        each if Text.Lower(Text.Trim([HOST_SRC])) <> "host" and [HOST_SRC] <> "" 
+             then [HOST_SRC] & " /" & [IP_SRC] 
+             else [IP_SRC],
+        type text
+    ),
+    ReplacedIP_SRC = Table.RemoveColumns(AddedIP_SRC, {"IP_SRC"}),
+    RenamedIP_SRC = Table.RenameColumns(ReplacedIP_SRC, {{"IP_SRC_New", "IP_SRC"}}),
+    BlankedHost_SRC = Table.TransformColumns(RenamedIP_SRC, {{"HOST_SRC", each "", type text}}),
+
+    // Transform IP_DST based on HOST_DST
+    AddedIP_DST = Table.AddColumn(
+        BlankedHost_SRC,
+        "IP_DST_New",
+        each if Text.Lower(Text.Trim([HOST_DST])) <> "host" and [HOST_DST] <> "" 
+             then [HOST_DST] & " /" & [IP_DST] 
+             else [IP_DST],
+        type text
+    ),
+    ReplacedIP_DST = Table.RemoveColumns(AddedIP_DST, {"IP_DST"}),
+    RenamedIP_DST = Table.RenameColumns(ReplacedIP_DST, {{"IP_DST_New", "IP_DST"}}),
+    BlankedHost_DST = Table.TransformColumns(RenamedIP_DST, {{"HOST_DST", each "", type text}}),
+
+    // Reorder columns
+    Final = Table.ReorderColumns(
+        BlankedHost_DST, 
+        {"TableName", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PROTO", "PORT", "HIT"}
+    )
+in
+    Final
