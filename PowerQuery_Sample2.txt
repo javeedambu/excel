@@ -75,22 +75,32 @@ let
         {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"}
     ),
 
-    // Transform columns
-    Result = Table.TransformColumns(
-        #"Expanded Content",
-        {
-            {"HOST_SRC", each "", type text},
-            {"HOST_IP", each if Text.Lower(Text.Trim([HOST_SRC])) <> "host" and [HOST_SRC] <> "" 
-                        then [HOST_SRC] & " /" & [HOST_IP] 
-                        else [HOST_IP], type text}
-        }
+    // Create a new IP_SRC column with HOST_SRC merged if needed
+    #"Updated IP_SRC" = Table.TransformColumns(
+        Table.AddColumn(
+            #"Expanded Content",
+            "IP_SRC_Temp",
+            each if Text.Lower(Text.Trim([HOST_SRC])) <> "host" and [HOST_SRC] <> "" 
+                 then [HOST_SRC] & " /" & [IP_SRC] 
+                 else [IP_SRC],
+            type text
+        ),
+        {"IP_SRC_Temp", each _, type text}  // keep type text
     ),
 
-    // Reorder columns as required
+    // Remove old IP_SRC and rename the new column
+    #"Replaced IP_SRC" = Table.RemoveColumns(#"Updated IP_SRC", {"IP_SRC"}),
+    #"Renamed IP_SRC" = Table.RenameColumns(#"Replaced IP_SRC", {{"IP_SRC_Temp", "IP_SRC"}}),
+
+    // Blank HOST_SRC
+    #"Blanked HOST_SRC" = Table.TransformColumns(#"Renamed IP_SRC", {{"HOST_SRC", each "", type text}}),
+
+    // Reorder columns
     Final = Table.ReorderColumns(
-        Result, 
+        #"Blanked HOST_SRC", 
         {"TableName", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PROTO", "PORT", "HIT"}
     )
 in
     Final
+
 ----------
