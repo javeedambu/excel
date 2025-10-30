@@ -104,3 +104,47 @@ in
     Final
 
 ----------
+
+let
+    // Load all tables from current workbook
+    Source = Excel.CurrentWorkbook(),
+
+    // Rename the auto-generated Name column to TableName
+    Renamed = Table.RenameColumns(Source, {{"Name", "TableName"}}),
+
+    // Filter out any tables named "Summary"
+    Filtered = Table.SelectRows(Renamed, each [TableName] <> "Summary"),
+
+    // Expand the table content
+    Expanded = Table.ExpandTableColumn(
+        Filtered,
+        "Content",
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"},
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"}
+    ),
+
+    // Update IP_SRC based on HOST_SRC
+    UpdatedIP = Table.AddColumn(
+        Expanded,
+        "IP_SRC_Temp",
+        each if Text.Lower(Text.Trim([HOST_SRC])) <> "host" and [HOST_SRC] <> "" 
+             then [HOST_SRC] & " /" & [IP_SRC] 
+             else [IP_SRC],
+        type text
+    ),
+
+    // Remove old IP_SRC and rename new column
+    ReplacedIP = Table.RemoveColumns(UpdatedIP, {"IP_SRC"}),
+    RenamedIP = Table.RenameColumns(ReplacedIP, {{"IP_SRC_Temp", "IP_SRC"}}),
+
+    // Blank HOST_SRC
+    BlankedHost = Table.TransformColumns(RenamedIP, {{"HOST_SRC", each "", type text}}),
+
+    // Reorder columns
+    Final = Table.ReorderColumns(
+        BlankedHost, 
+        {"TableName", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PROTO", "PORT", "HIT"}
+    )
+in
+    Final
+
