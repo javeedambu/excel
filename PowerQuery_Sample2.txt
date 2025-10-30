@@ -54,3 +54,43 @@ let
     #"Reordered Columns" = Table.ReorderColumns(#"Added TARGET", {"TableName", "NAME", "URI", "PROTOCOL", "TARGET"})
 in
     #"Reordered Columns"
+
+--------------------
+
+let
+    // Load all tables from current workbook
+    Source = Excel.CurrentWorkbook(),
+
+    // Rename the auto-generated Name column to TableName
+    #"Renamed Name" = Table.RenameColumns(Source, {{"Name", "TableName"}}),
+
+    // Filter out any tables named "Summary"
+    #"Filtered Rows" = Table.SelectRows(#"Renamed Name", each [TableName] <> "Summary"),
+
+    // Expand the table content
+    #"Expanded Content" = Table.ExpandTableColumn(
+        #"Filtered Rows", 
+        "Content", 
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"}, 
+        {"PROTO", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PORT", "HIT"}
+    ),
+
+    // Transform columns
+    Result = Table.TransformColumns(
+        #"Expanded Content",
+        {
+            {"HOST_SRC", each "", type text},
+            {"HOST_IP", each if Text.Lower(Text.Trim([HOST_SRC])) <> "host" and [HOST_SRC] <> "" 
+                        then [HOST_SRC] & " /" & [HOST_IP] 
+                        else [HOST_IP], type text}
+        }
+    ),
+
+    // Reorder columns as required
+    Final = Table.ReorderColumns(
+        Result, 
+        {"TableName", "VLAN", "HOST_SRC", "IP_SRC", "HOST_DST", "IP_DST", "PROTO", "PORT", "HIT"}
+    )
+in
+    Final
+----------
